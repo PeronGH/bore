@@ -1,6 +1,6 @@
 //! Server implementation for the `bore` service.
 
-use std::{io, net::SocketAddr, ops::RangeInclusive, sync::Arc, time::Duration};
+use std::{io, ops::RangeInclusive, sync::Arc, time::Duration};
 
 use anyhow::Result;
 use dashmap::DashMap;
@@ -39,15 +39,7 @@ impl Server {
     /// Start the server, listening for new connections.
     pub async fn listen(self) -> Result<()> {
         let this = Arc::new(self);
-
-        // Combine IPv4 and IPv6 addresses into a single address list.
-        let addrs = vec![
-            SocketAddr::from(([0, 0, 0, 0], CONTROL_PORT)),
-            SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], CONTROL_PORT)),
-        ];
-
-        // Bind to the combined addresses.
-        let listener = TcpListener::bind(&addrs[..]).await?;
+        let listener = TcpListener::bind(("::", CONTROL_PORT)).await?;
         info!("Server listening on both IPv4 and IPv6");
 
         loop {
@@ -69,11 +61,7 @@ impl Server {
 
     async fn create_listener(&self, port: u16) -> Result<TcpListener, &'static str> {
         let try_bind = |port: u16| async move {
-            let addrs = vec![
-                SocketAddr::from(([0, 0, 0, 0], port)),
-                SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], port)),
-            ];
-            TcpListener::bind(&addrs[..])
+            TcpListener::bind(("::", port))
                 .await
                 .map_err(|err| match err.kind() {
                     io::ErrorKind::AddrInUse => "port already in use",
