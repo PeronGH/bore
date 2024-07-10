@@ -39,9 +39,16 @@ impl Server {
     /// Start the server, listening for new connections.
     pub async fn listen(self) -> Result<()> {
         let this = Arc::new(self);
-        let addr = SocketAddr::from(([0, 0, 0, 0], CONTROL_PORT));
-        let listener = TcpListener::bind(&addr).await?;
-        info!(?addr, "server listening");
+
+        // Combine IPv4 and IPv6 addresses into a single address list.
+        let addrs = vec![
+            SocketAddr::from(([0, 0, 0, 0], CONTROL_PORT)),
+            SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], CONTROL_PORT)),
+        ];
+
+        // Bind to the combined addresses.
+        let listener = TcpListener::bind(&addrs[..]).await?;
+        info!("Server listening on both IPv4 and IPv6");
 
         loop {
             let (stream, addr) = listener.accept().await?;
@@ -62,7 +69,11 @@ impl Server {
 
     async fn create_listener(&self, port: u16) -> Result<TcpListener, &'static str> {
         let try_bind = |port: u16| async move {
-            TcpListener::bind(("0.0.0.0", port))
+            let addrs = vec![
+                SocketAddr::from(([0, 0, 0, 0], port)),
+                SocketAddr::from(([0, 0, 0, 0, 0, 0, 0, 0], port)),
+            ];
+            TcpListener::bind(&addrs[..])
                 .await
                 .map_err(|err| match err.kind() {
                     io::ErrorKind::AddrInUse => "port already in use",
